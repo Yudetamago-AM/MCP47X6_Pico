@@ -1,43 +1,41 @@
 /**************************************************************************/
 /*! 
-    @file     MCP47X6.h
+    @file     MCP47X6.cpp
     @author   C. Schnarel
+    @author   Yudetamago-Am
 	@license  BSD (see license.txt)
 	
-    This is part of an Arduino library to interface with the Microchip
-    MCP47X6 series of Digital-to-Analog converters which are connected
-    via the I2C bus.
+    This file is part of an Raspberry Pi Pico C/C++ SDK library to interface with the
+    Microchip MCP47X6 series of Digital-to-Analog converters which are
+    connected via the I2C bus.
 
-    This file is the MCP47X6 I2C device class header file
+    This file is the MCP47X6 I2C device class file
     Based on Microchip datasheets for the following part numbers
         MCP4706 (8-bit), MCP4716 (10-bit), MCP4726 (12-bit)
     These parts share a common programming interface
 
-    (c) Copyright 2013-Dec-24 Chip Schnarel <schnarel@hotmail.com>
+    Copyright (c) 2013 Chip Schnarel <schnarel@hotmail.com>
+    Copyright (c) 2023 Yudetamago-AM <akiom@rittai.org>
 
-    Updates should (hopefully) always be available at
+    Original Library: Updates should (hopefully) always be available at
         https://github.com/uchip/MCP47X6
+
+    Forked(this) Library:
+        https://github.com/Yudetamago-AM/MCP47X6_Pico
 
 	@section  HISTORY
 
     2013-Dec-25  - First release, C. Schnarel
+    2023-Oct-11  - Modify to RP C/C++ SDK, Yudetamago-AM
 */
 /**************************************************************************/
 
 #ifndef _MCP47X6_H_
 #define _MCP47X6_H_
 
-#ifdef ARDUINO
-    #if ARDUINO < 100
-        #include "WProgram.h"
-    #else
-        #include "Arduino.h"
-    #endif
-#else
-    #include "ArduinoWrapper.h"
-#endif
-
-#include <Wire.h>
+#include <stdio.h>
+#include "pico/stdlib.h"
+#include "hardware/i2c.h"
 
 // I2C Address of device
 // MCP4706, MCP4716 & MCP4726 are factory programed for any of 0x60 thru 0x67
@@ -76,13 +74,13 @@
 
 class MCP47X6 {
     public:
-        MCP47X6();
-        MCP47X6(uint8_t address);
+        MCP47X6(i2c_inst_t* i2c);
+        MCP47X6(i2c_inst_t* i2c, uint8_t address);
         
-        bool testConnection(void);
+        //bool testConnection(void);
 
-	   bool begin(void);
-	   bool begin(uint8_t config);
+	   bool begin(uint8_t sda, uint8_t scl);
+	   bool begin(uint8_t sda, uint8_t scl, uint8_t config);
 
         // Set the configuration bits for the DAC
         void setGain(uint8_t gain);
@@ -100,6 +98,9 @@ class MCP47X6 {
         bool powerDown(void);
 
     private:
+        i2c_inst_t* i2c;
+        uint8_t sda;
+        uint8_t scl;
         bool writeConfigReg(uint8_t theConfig);
         uint8_t devAddr;
         uint8_t config;

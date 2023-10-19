@@ -2,9 +2,10 @@
 /*! 
     @file     MCP47X6.cpp
     @author   C. Schnarel
+    @author   Yudetamago-Am
 	@license  BSD (see license.txt)
 	
-    This file is part of an Arduino library to interface with the
+    This file is part of an Raspberry Pi Pico C/C++ SDK library to interface with the
     Microchip MCP47X6 series of Digital-to-Analog converters which are
     connected via the I2C bus.
 
@@ -14,13 +15,18 @@
     These parts share a common programming interface
 
     Copyright (c) 2013 Chip Schnarel <schnarel@hotmail.com>
+    Copyright (c) 2023 Yudetamago-AM <akiom@rittai.org>
 
-    Updates should (hopefully) always be available at
+    Original Library: Updates should (hopefully) always be available at
         https://github.com/uchip/MCP47X6
+
+    Forked(this) Library:
+        https://github.com/Yudetamago-AM/MCP47X6_Pico
 
 	@section  HISTORY
 
     2013-Dec-25  - First release, C. Schnarel
+    2023-Oct-11  - Modify to RP C/C++ SDK, Yudetamago-AM
 */
 /**************************************************************************/
 
@@ -33,7 +39,8 @@
  * Default constructor, uses default I2C address.
  * @see MCP47X6_DEFAULT_ADDRESS
  */
-MCP47X6::MCP47X6() {
+MCP47X6::MCP47X6(i2c_inst_t* i2c) {
+    this->i2c = i2c;
     devAddr = MCP47X6_DEFAULT_ADDRESS;
 }
 
@@ -42,7 +49,8 @@ MCP47X6::MCP47X6() {
  * @param address I2C address
  * @see MCP47X6_DEFAULT_ADDRESS
  */
-MCP47X6::MCP47X6(uint8_t address) {
+MCP47X6::MCP47X6(i2c_inst_t* i2c, uint8_t address) {
+    this->i2c = i2c;
     devAddr = address;
 }
 
@@ -51,10 +59,14 @@ MCP47X6::MCP47X6(uint8_t address) {
  * Make sure the device is connected and responds as expected.
  * @return true if connection is valid, false otherwise
  */
+#if 0
 bool MCP47X6::testConnection(void) {
+    
     Wire.beginTransmission(devAddr);
     return (Wire.endTransmission() == 0);
+  
 }
+#endif
 
 /******************************************
  * Power on and prepare for general usage.
@@ -63,14 +75,18 @@ bool MCP47X6::testConnection(void) {
  * the driver since a reset of the microcontroller
  * did not necessarily restart the device.
  */
-bool MCP47X6::begin() {
+bool MCP47X6::begin(uint8_t sda, uint8_t scl) {
+  gpio_set_function(sda, GPIO_FUNC_I2C);
+  gpio_set_function(scl, GPIO_FUNC_I2C);
   // read the settings from DAC EEPROM
 
   // reinitialize the device from the read settings
   return writeConfigReg(config);
 }
 
-bool MCP47X6::begin(uint8_t newConfig) {
+bool MCP47X6::begin(uint8_t sda, uint8_t scl, uint8_t newConfig) {
+  gpio_set_function(sda, GPIO_FUNC_I2C);
+  gpio_set_function(scl, GPIO_FUNC_I2C);
   // initialize the device from the new settings
   config = newConfig;
   return true;
@@ -97,6 +113,7 @@ void MCP47X6::setVReference(uint8_t vref) {
 bool MCP47X6::saveSettings(void) {
   // read the current volatile settings
   // write the values back to DAC EEPROM
+  return true;
 }
 
 /******************************************
@@ -109,20 +126,24 @@ bool MCP47X6::saveSettings(void) {
  * (i.e. value & 0xFF0)
  */
 bool MCP47X6::setOutputLevel(uint16_t level) {
-  Wire.beginTransmission(devAddr);
-  Wire.write((config | MCP47X6_CMD_VOLALL) & MCP47X6_PWRDN_MASK);
-  Wire.write((uint8_t) ((level>>4) & 0xFF));
-  Wire.write((uint8_t) ((level<<4) & 0xF0));
-  return (Wire.endTransmission() == 0);
+  uint8_t buf[3];
+  buf[0] = ((config | MCP47X6_CMD_VOLALL) & MCP47X6_PWRDN_MASK);
+  buf[1] = ((uint8_t)((level>>4) & 0xFF));
+  buf[2] = ((uint8_t)((level<<4) & 0xF0));
+
+  int8_t ret = i2c_write_blocking(i2c, devAddr, buf, 3, false);
+  return (ret!=PICO_ERROR_GENERIC);
 }
 
 // Special case for 8-bit device (MCP4706) - saves one byte of transfer
 // and is therefore faster
 bool MCP47X6::setOutputLevel(uint8_t level) {
-  Wire.beginTransmission(devAddr);
-  Wire.write((uint8_t) MCP47X6_CMD_VOLDAC);
-  Wire.write(level);
-  return (Wire.endTransmission() == 0);
+  uint8_t buf[2];
+  buf[0] = ((uint8_t)MCP47X6_CMD_VOLDAC);
+  buf[1] = level;
+
+  int8_t ret = i2c_write_blocking(i2c, devAddr, buf, 2, false);
+  return (ret!=PICO_ERROR_GENERIC);
 }
 
 
@@ -144,7 +165,9 @@ bool MCP47X6::powerDown(uint8_t pdOutR) {
  * Private helper function to write just the config register
  */
 bool MCP47X6::writeConfigReg(uint8_t theConfig) {
-  Wire.beginTransmission(devAddr);
-  Wire.write(theConfig | MCP47X6_CMD_VOLCONFIG);
-  return (Wire.endTransmission() == 0);
+  uint8_t buf;
+  buf = (theConfig | MCP47X6_CMD_VOLCONFIG);
+
+  int8_t ret = i2c_write_blocking(i2c, devAddr, &buf, 1, false);
+  return (ret!=PICO_ERROR_GENERIC);
 }
