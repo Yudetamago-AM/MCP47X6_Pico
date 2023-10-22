@@ -76,8 +76,6 @@ bool MCP47X6::testConnection(void) {
  * did not necessarily restart the device.
  */
 bool MCP47X6::begin(uint8_t sda, uint8_t scl) {
-  gpio_set_function(sda, GPIO_FUNC_I2C);
-  gpio_set_function(scl, GPIO_FUNC_I2C);
   // read the settings from DAC EEPROM
 
   // reinitialize the device from the read settings
@@ -85,8 +83,6 @@ bool MCP47X6::begin(uint8_t sda, uint8_t scl) {
 }
 
 bool MCP47X6::begin(uint8_t sda, uint8_t scl, uint8_t newConfig) {
-  gpio_set_function(sda, GPIO_FUNC_I2C);
-  gpio_set_function(scl, GPIO_FUNC_I2C);
   // initialize the device from the new settings
   config = newConfig;
   return true;
@@ -113,7 +109,7 @@ void MCP47X6::setVReference(uint8_t vref) {
 bool MCP47X6::saveSettings(void) {
   // read the current volatile settings
   // write the values back to DAC EEPROM
-  return true;
+  return writeConfigReg(config);
 }
 
 /******************************************
